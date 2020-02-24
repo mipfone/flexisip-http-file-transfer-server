@@ -50,7 +50,9 @@ mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer
 cp -R *.php "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer-server"
 cp -R README* "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer-server"
 mkdir -p $RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d
-cp  httpd/http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
+cp httpd/http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
+mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
+cp logrotate/http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/logrotate.d"
 
 %post
 if [ $1 -eq 1 ] ; then
@@ -69,10 +71,11 @@ fi
 /opt/belledonne-communications/share/http-file-transfer-server/tmp/
 
 %config(noreplace) /opt/rh/httpd24/root/etc/httpd/conf.d/http-file-transfer-server.conf
+%config(noreplace) /etc/logrotate.d/http-file-transfer-server.conf
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Wed Feb 24 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
+* Mon Feb 24 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
 - Initial RPM release.

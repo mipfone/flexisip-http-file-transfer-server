@@ -74,5 +74,5 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
-* Wed Feb 16 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
+* Wed Feb 24 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
 - Initial RPM release.

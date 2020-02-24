@@ -30,7 +30,11 @@ job-centos7-rpm-deploy:
   tags: [ "docker-centos7" ]
 
   only:
-    - schedules
+    refs:
+      - master
+    changes:
+      - http-file-transfer-server.spec
+
   dependencies:
     - job-centos7-rpm
 

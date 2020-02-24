@@ -17,15 +17,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-function custom_log($message) {
-	$now = getdate();
-	$month = sprintf("%02d", $now["mon"]);
-	$day = sprintf("%02d", $now["mday"]);
-	$hours = sprintf("%02d", $now["hours"]);
-	$minutes = sprintf("%02d", $now["minutes"]);
-	$seconds = sprintf("%02d", $now["seconds"]);
+/* configuration: these should be in a config file */
+define ("http_file_transfer_log_file", "/var/opt/belledonne-communications/log/http-file-transfer-server.log");
+date_default_timezone_set("UTC");
 
-	error_log("[" . $day . "/" .  $month . "/" . $now["year"] . " " . $hours . ":" . $minutes . ":" . $seconds . "] " . $message . "\r\n", 3, "/var/log/file_sharing/trace_file_sharing.log");
+// make sure we do not display any error or it may mess the returned message
+ini_set('display_errors', 'Off');
+
+function custom_log($message) {
+	file_put_contents(http_file_transfer_log_file, date("c")." : $message\n", FILE_APPEND);
 }
 
 function upload_error_message($error) {
@@ -61,10 +61,6 @@ function file_too_large() {
         }
 }
 
-date_default_timezone_set("UTC");
-
-// make sure we do not display any error or it may mess the returned message
-ini_set('display_errors', 'Off');
 
 
 if (count($_FILES) != 0) {

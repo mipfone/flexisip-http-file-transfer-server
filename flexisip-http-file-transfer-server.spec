@@ -49,6 +49,7 @@ mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file
 mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp"
 cp -R *.php "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
 cp -R README* "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
+cp -R LICENSE.txt "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
 mkdir -p $RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d
 cp httpd/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
@@ -67,6 +68,7 @@ fi
 %files
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/*.php
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/README*
+/opt/belledonne-communications/share/flexisip-http-file-transfer-server/LICENSE.txt
 %dir
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp/
 

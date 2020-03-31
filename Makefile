@@ -7,6 +7,7 @@ rpm:
 	mkdir -p $(OUTPUT_DIR)/rpmbuild/SOURCES
 	cp src/*.php $(OUTPUT_DIR)/flexisip-http-file-transfer-server/
 	cp README.md $(OUTPUT_DIR)/flexisip-http-file-transfer-server/
+	cp LICENSE.txt $(OUTPUT_DIR)/flexisip-http-file-transfer-server/
 	mkdir -p $(OUTPUT_DIR)/flexisip-http-file-transfer-server/httpd
 	cp httpd/flexisip-http-file-transfer-server.conf $(OUTPUT_DIR)/flexisip-http-file-transfer-server/httpd
 	mkdir -p $(OUTPUT_DIR)/flexisip-http-file-transfer-server/logrotate

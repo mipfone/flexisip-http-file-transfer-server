@@ -9,22 +9,22 @@
 #%define _datadir           %{_datarootdir}
 #%define _docdir            %{_datadir}/doc
 
-%define build_number 2
+%define build_number 1
 #%if %{build_number}
 #%define build_number_ext -%{build_number}
 #%endif
 
 
-Name:           bc-http-file-transfer-server
+Name:           bc-flexisip-http-file-transfer-server
 Version:        1.0
 Release:        %{build_number}%{?dist}
-Summary:        HTTP File Transfer server.
+Summary:        Flexisip HTTP File Transfer server.
 
 Group:          Applications/Communications
 License:        GPL
 URL:            http://www.linphone.org
 #Source0:        %{name}-%{version}%{?build_number_ext}.tar.gz
-Source0:	http-file-transfer-server.tar.gz
+Source0:	flexisip-http-file-transfer-server.tar.gz
 #BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 #BuildRoot:	/home/jenkins/rpmbuild/%{name}-%{version}-%{release}
 
@@ -41,37 +41,37 @@ A PHP script managing file transfer according to Rich Communications Service rec
 %prep
 #%setup -q
 #%setup -n %{name}-%{version}%{?build_number}
-%setup -n http-file-transfer-server
+%setup -n flexisip-http-file-transfer-server
 
 %install
 rm -rf "$RPM_BUILD_ROOT"
-mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer-server"
-mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer-server/tmp"
-cp -R *.php "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer-server"
-cp -R README* "$RPM_BUILD_ROOT/opt/belledonne-communications/share/http-file-transfer-server"
+mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
+mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp"
+cp -R *.php "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
+cp -R README* "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
 mkdir -p $RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d
-cp httpd/http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
+cp httpd/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
-cp logrotate/http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/logrotate.d"
+cp logrotate/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/logrotate.d"
 
 %post
 if [ $1 -eq 1 ] ; then
 mkdir -p /var/opt/belledonne-communications/log
-touch /var/opt/belledonne-communications/log/http-file-transfer-server.log
-chown apache:apache /var/opt/belledonne-communications/log/http-file-transfer-server.log
-chcon -t httpd_sys_rw_content_t /var/opt/belledonne-communications/log/http-file-transfer-server.log
-chown apache:apache /opt/belledonne-communications/share/http-file-transfer-server/tmp
-chcon -t httpd_sys_rw_content_t /opt/belledonne-communications/share/http-file-transfer-server/tmp
+touch /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
+chown apache:apache /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
+chcon -t httpd_sys_rw_content_t /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
+chown apache:apache /opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp
+chcon -t httpd_sys_rw_content_t /opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp
 fi
 
 %files
-/opt/belledonne-communications/share/http-file-transfer-server/*.php
-/opt/belledonne-communications/share/http-file-transfer-server/README*
+/opt/belledonne-communications/share/flexisip-http-file-transfer-server/*.php
+/opt/belledonne-communications/share/flexisip-http-file-transfer-server/README*
 %dir
-/opt/belledonne-communications/share/http-file-transfer-server/tmp/
+/opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp/
 
-%config(noreplace) /opt/rh/httpd24/root/etc/httpd/conf.d/http-file-transfer-server.conf
-%config(noreplace) /etc/logrotate.d/http-file-transfer-server.conf
+%config(noreplace) /opt/rh/httpd24/root/etc/httpd/conf.d/flexisip-http-file-transfer-server.conf
+%config(noreplace) /etc/logrotate.d/flexisip-http-file-transfer-server.conf
 
 %clean
 rm -rf $RPM_BUILD_ROOT

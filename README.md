@@ -10,9 +10,9 @@ The current version of this server does not authenticate the user accessing it. 
 
 Requirements
 ------------
-The server requires a functional web server serving php script located (by default) in */opt/belledonne-communications/share/http-file-transfer-server/hft.php*
+The server requires a functional web server serving php script located (by default) in */opt/belledonne-communications/share/flexisip-http-file-transfer-server/hft.php*
 
-The server requires writing access to a directory accessible directly through http, located by default in */opt/belledonne-communications/share/http-file-transfer-server/tmp/* It is strongly advised to disable any script execution in this directory.
+The server requires writing access to a directory accessible directly through http, located by default in */opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp/* It is strongly advised to disable any script execution in this directory.
 
 Package
 --------
@@ -25,5 +25,5 @@ To build a rpm package with docker:
 
 `docker run -v $PWD:/home/bc -it gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos:7  make`
 
-The http-file-transfer-server rpm package can be found in rpmbuild/RPMS/x86_64/bc-http-file-transfer-server*.rpm
+The flexisip-http-file-transfer-server rpm package can be found in rpmbuild/RPMS/x86_64/bc-flexisip-http-file-transfer-server*.rpm
 Installation requires package centos-release-scl-rh to be installed for php7.1

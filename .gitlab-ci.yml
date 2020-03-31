@@ -33,7 +33,7 @@ job-centos7-rpm-deploy:
     refs:
       - master
     changes:
-      - http-file-transfer-server.spec
+      - flexisip-http-file-transfer-server.spec
 
   dependencies:
     - job-centos7-rpm

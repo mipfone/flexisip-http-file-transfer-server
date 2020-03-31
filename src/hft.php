@@ -1,6 +1,6 @@
 <?php
 /*
-    HTTP File Transfer Server
+    Flexisip HTTP File Transfer Server
     Copyright (C) 2020  Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
  */
 
 /* configuration: these should be in a config file */
-define ("http_file_transfer_log_file", "/var/opt/belledonne-communications/log/http-file-transfer-server.log");
+define ("http_file_transfer_log_file", "/var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log");
 date_default_timezone_set("UTC");
 
 // make sure we do not display any error or it may mess the returned message

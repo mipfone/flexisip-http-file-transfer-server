@@ -9,7 +9,7 @@
 #%define _datadir           %{_datarootdir}
 #%define _docdir            %{_datadir}/doc
 
-%define build_number 1
+%define build_number 2
 #%if %{build_number}
 #%define build_number_ext -%{build_number}
 #%endif
@@ -29,7 +29,7 @@ Source0:	flexisip-http-file-transfer-server.tar.gz
 #BuildRoot:	/home/jenkins/rpmbuild/%{name}-%{version}-%{release}
 
 # dependencies
-Requires:	rh-php71-php rh-php71-php-mysqlnd
+Requires:	rh-php71-php
 
 %description
 A PHP script managing file transfer according to Rich Communications Service recommendation : RCC.07 v6.0 section 3.5.4.8 File Transfer via HTTP.
@@ -45,11 +45,13 @@ A PHP script managing file transfer according to Rich Communications Service rec
 
 %install
 rm -rf "$RPM_BUILD_ROOT"
+mkdir -p "$RPM_BUILD_ROOT/var/opt/belledonne-communications/flexisip-http-file-transfer-tmp"
 mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
-mkdir -p "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp"
 cp -R *.php "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
 cp -R README* "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
 cp -R LICENSE.txt "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-http-file-transfer-server"
+mkdir -p "$RPM_BUILD_ROOT/etc/flexisip-http-file-transfer-server"
+cp -R flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/flexisip-http-file-transfer-server"
 mkdir -p $RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d
 cp httpd/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
@@ -61,8 +63,6 @@ mkdir -p /var/opt/belledonne-communications/log
 touch /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
 chown apache:apache /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
 chcon -t httpd_sys_rw_content_t /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
-chown apache:apache /opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp
-chcon -t httpd_sys_rw_content_t /opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp
 fi
 
 %files
@@ -70,8 +70,9 @@ fi
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/README*
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/LICENSE.txt
 %dir
-/opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp/
+%attr(744,apache,apache) /var/opt/belledonne-communications/flexisip-http-file-transfer-tmp
 
+%config(noreplace) /etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf
 %config(noreplace) /opt/rh/httpd24/root/etc/httpd/conf.d/flexisip-http-file-transfer-server.conf
 %config(noreplace) /etc/logrotate.d/flexisip-http-file-transfer-server.conf
 
@@ -79,5 +80,7 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Wed Apr 1 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
+- Add configuration file
 * Mon Feb 24 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
 - Initial RPM release.

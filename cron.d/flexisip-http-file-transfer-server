@@ -1,0 +1,12 @@
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+
+# everyday at 2am, all files older than 7 days (-mmin +$((7*24*60))) are removed from the tmp directory.
+# the job is run by apache to prevent deleting files the server did not wrote
+  0  2  *  *  * apache find /var/opt/belledonne-communications/flexisip-http-file-transfer-tmp/ -type f -mmin +$((7*24*60)) -exec rm -f {} \;

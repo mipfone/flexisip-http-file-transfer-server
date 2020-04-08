@@ -2,10 +2,6 @@
 # Base configuration
 #################################################
 
-variables:
- DEPLOY_SERVER: buildbot@www.linphone.org
- CENTOS7_DEPLOY_DIRECTORY: snapshots-private/centos7
-
 job-centos7-rpm:
 
   tags: [ "docker" ]

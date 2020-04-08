@@ -9,7 +9,7 @@
 #%define _datadir           %{_datarootdir}
 #%define _docdir            %{_datadir}/doc
 
-%define build_number 2
+%define build_number 3
 #%if %{build_number}
 #%define build_number_ext -%{build_number}
 #%endif
@@ -29,7 +29,7 @@ Source0:	flexisip-http-file-transfer-server.tar.gz
 #BuildRoot:	/home/jenkins/rpmbuild/%{name}-%{version}-%{release}
 
 # dependencies
-Requires:	rh-php71-php
+# this server need php to run there is no generic name and we do not need to enforce the use of apache, so no dependencies
 
 %description
 A PHP script managing file transfer according to Rich Communications Service recommendation : RCC.07 v6.0 section 3.5.4.8 File Transfer via HTTP.
@@ -56,6 +56,8 @@ mkdir -p $RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d
 cp httpd/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/opt/rh/httpd24/root/etc/httpd/conf.d"
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 cp logrotate/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/logrotate.d"
+mkdir -p $RPM_BUILD_ROOT/etc/cron.d
+cp cron.d/flexisip-http-file-transfer-server "$RPM_BUILD_ROOT/etc/cron.d"
 
 %post
 if [ $1 -eq 1 ] ; then
@@ -63,6 +65,8 @@ mkdir -p /var/opt/belledonne-communications/log
 touch /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
 chown apache:apache /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
 chcon -t httpd_sys_rw_content_t /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
+# it seems crontab daemon parses only fresh files, to be sure, touch this one when the install is done
+touch /etc/cron.d/flexisip-http-file-transfer-server
 fi
 
 %files
@@ -75,11 +79,14 @@ fi
 %config(noreplace) /etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf
 %config(noreplace) /opt/rh/httpd24/root/etc/httpd/conf.d/flexisip-http-file-transfer-server.conf
 %config(noreplace) /etc/logrotate.d/flexisip-http-file-transfer-server.conf
+%config(noreplace) /etc/cron.d/flexisip-http-file-transfer-server
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Tue Apr 7 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
+- Add crontab configuration file
 * Wed Apr 1 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
 - Add configuration file
 * Mon Feb 24 2020 Johan Pascal <johan.pascal@belledonne-communications.com>

@@ -13,6 +13,8 @@ rpm:
 	cp httpd/flexisip-http-file-transfer-server.conf $(OUTPUT_DIR)/flexisip-http-file-transfer-server/httpd
 	mkdir -p $(OUTPUT_DIR)/flexisip-http-file-transfer-server/logrotate
 	cp logrotate/flexisip-http-file-transfer-server.conf $(OUTPUT_DIR)/flexisip-http-file-transfer-server/logrotate
+	mkdir -p $(OUTPUT_DIR)/flexisip-http-file-transfer-server/cron.d
+	cp cron.d/flexisip-http-file-transfer-server $(OUTPUT_DIR)/flexisip-http-file-transfer-server/cron.d
 	cp flexisip-http-file-transfer-server.spec $(OUTPUT_DIR)/rpmbuild/SPECS/
 	tar cvf flexisip-http-file-transfer-server.tar.gz -C $(OUTPUT_DIR) flexisip-http-file-transfer-server
 	mv flexisip-http-file-transfer-server.tar.gz $(OUTPUT_DIR)/rpmbuild/SOURCES/flexisip-http-file-transfer-server.tar.gz

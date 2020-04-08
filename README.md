@@ -12,7 +12,20 @@ Requirements
 ------------
 The server requires a functional web server serving php script located (by default) in */opt/belledonne-communications/share/flexisip-http-file-transfer-server/hft.php*
 
-The server requires writing access to a directory accessible directly through http, located by default in */opt/belledonne-communications/share/flexisip-http-file-transfer-server/tmp/* It is strongly advised to disable any script execution in this directory.
+The server requires writing access to a directory accessible directly through http, located by default in */var/opt/belledonne-communications/flexisip-http-file-transfer-tmp/* It is strongly advised to disable any script execution in this directory.
+
+Logs are written in /var/opt/belledonne-communications/log/flexisip-http-file-transfer.log
+
+
+Configuration
+-------------
+
+The configuration file is in */etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf*
+
+Optional
+--------
+
+The package install a logrotate and a crontab entry to rotate the log and delete uploaded file at the end of their validity period (default 1 week)
 
 Package
 --------

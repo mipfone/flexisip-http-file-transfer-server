@@ -16,7 +16,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+// make sure we do not display any error or it may mess the returned message
+ini_set('display_errors', 'Off');
 
 /*** simple logs ***/
 // emulate simple enumeration
@@ -27,9 +28,6 @@ abstract class LogLevel {
 	const MESSAGE = 3;
 	const DEBUG = 4;
 };
-
-// Include the configuration file AFTER the definition of logLevel
-include "/etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf";
 
 function stringErrorLevel($level) {
 	switch($level) {
@@ -52,13 +50,214 @@ function fhft_log($level, $message) {
 	}
 }
 
+// Include the configuration file AFTER the definition of logLevel
+// get configuration file path, default is /etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf
+// but give a chance to the webserver to configure it
+$config_file= "/etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf";
+if (isset($_SERVER["flexisip_http_file_transfer_config_path"])) {
+        $config_file=$_SERVER["flexisip_http_file_transfer_config_path"];
+}
+include $config_file;
+
+fhft_log(LogLevel::DEBUG, "Configuration file path: ".$config_file);
+
 // avoid date() warnings
 // time zone shall be set in php.ini or in flexisip-http-file-transfer configuration file if needed
 date_default_timezone_set(@date_default_timezone_get());
 
-// make sure we do not display any error or it may mess the returned message
-ini_set('display_errors', 'Off');
 
+/*** User authentication ***/
+function auth_get_db_conn() {
+	if (USE_PERSISTENT_CONNECTIONS) {
+		$conn = mysqli_connect('p:' . AUTH_DB_HOST, AUTH_DB_USER, AUTH_DB_PASSWORD, AUTH_DB_NAME);
+	} else {
+		$conn = mysqli_connect(AUTH_DB_HOST, AUTH_DB_USER, AUTH_DB_PASSWORD, AUTH_DB_NAME);
+	}
+	if (!$conn) {
+		fhft_log(LogLevel::ERROR, "Unable to connect to MySQL base ".AUTH_DB_NAME.".\nDebugging errno: " . mysqli_connect_errno() . "\nDebugging error: " . mysqli_connect_error() . "\n");
+	}
+	return $conn;
+}
+
+// Nonce are one-time usage, in order to avoid storing them in a table
+// The nonce is built using:
+// - timestamp : nonce is valid for MIN_NONCE_VALIDITY_PERIOD seconds at minimum and twice it at maximum (our goal is one time usage anyway, typical value shall be 10 )
+// - secret key : avoid an attacker to be able to generate a valid nonce
+function auth_get_valid_nonces() {
+	$time = time();
+	$time -= $time%MIN_NONCE_VALIDITY_PERIOD; // our nonce will be valid at leat MIN_NONCE_VALIDITY_PERIOD seconds and max twice it, so floor the timestamp
+	return array(
+		hash_hmac("sha256", $time, AUTH_NONCE_KEY),
+		hash_hmac("sha256", $time-MIN_NONCE_VALIDITY_PERIOD, AUTH_NONCE_KEY));
+}
+
+function request_authentication($realm = "sip.example.org", $username=null) {
+	$has_md5 = false;
+	$has_sha256 = false;
+
+	if ($username != null) {
+		// Get the password/hash from database to include only available password hash in the authenticate header
+		$db = auth_get_db_conn();
+		$stmt = $db->prepare(AUTH_QUERY);
+		if (!$stmt) {
+			fhft_log (LogLevel::ERROR, "Unable to execute ".AUTH_QUERY.".\nDebugging errno: " . mysqli_connect_errno() . "\nDebugging error: " . mysqli_connect_error() . "\n");
+			$has_md5 = true;
+			$has_sha256 = true;
+		} else {
+			$stmt->bind_param('ss', $username, $realm);
+			$stmt->execute();
+
+			if ($query_result = $stmt->get_result()) {
+				while ($row = $query_result->fetch_assoc()) {
+					$algorithm = $row['algorithm'];
+					if ($algorithm == 'CLRTXT') {
+						fhft_log(LogLevel::DEBUG, "User  " . $username. " has clear text password in db \n");
+						$has_md5 = true;
+						$has_sha256 = true;
+						break; // with clear text password, we can reconstruct MD5 or SHA256 hash, don't parse anything else from base
+					} elseif ($algorithm == 'MD5' ) {
+						fhft_log(LogLevel::DEBUG, "User  " . $username. " has md5 password in db \n");
+						$has_md5 = true;
+					} elseif ($algorithm == 'SHA-256') {
+						fhft_log(LogLevel::DEBUG, "User  " . $username. " has sha256 password in db \n");
+						$has_sha256 = true;
+					} else {
+						fhft_log(LogLevel::WARNING, "User  " . $username. " uses unrecognised hash algorithm ".$algorithm." to store password in db \n");
+					}
+				}
+			}
+
+			$stmt->close();
+		}
+		$db->close();
+	} else { // we don't have the username authorize both MD5 and SHA256
+		$has_md5 = true;
+		$has_sha256 = true;
+	}
+
+	if (($has_md5 || $has_sha256) == false) {
+		fhft_log(LogLevel::WARNING, "User  " . $username. " not found in db upon request_authentification\n");
+		// reply anyway with both hash authorized
+		$has_md5 = true;
+		$has_sha256 = true;
+	}
+
+	header('HTTP/1.1 401 Unauthorized');
+	if ($has_md5 == true) {
+		header('WWW-Authenticate: Digest realm="' . $realm.
+			'",qop="auth",algorithm=MD5,nonce="' . auth_get_valid_nonces()[0] . '",opaque="' . md5($realm) . '"');
+	}
+
+	if ($has_sha256 == true) {
+		header('WWW-Authenticate: Digest realm="' . $realm.
+			'",qop="auth",algorithm=SHA-256,nonce="' . auth_get_valid_nonces()[0] . '",opaque="' . md5($realm) . '"',false);
+	}
+
+	exit();
+}
+
+function authenticate($auth_digest, $realm = "sip.example.org") {
+	// Parse the client authentication data
+	preg_match_all('@(realm|username|nonce|uri|nc|cnonce|qop|response|opaque|algorithm)=[\'"]?([^\'",]+)@', $auth_digest, $a);
+	$data = array_combine($a[1], $a[2]);
+	$username = $data['username'];
+
+	// Is the nonce valid?
+	$valid_nonces = auth_get_valid_nonces();
+	if (!hash_equals($valid_nonces[0], $data['nonce']) && !hash_equals($valid_nonces[1], $data['nonce'])) {
+		fhft_log(LogLevel::DEBUG, "User  " . $username. " tried to log using invalid nonce");
+		return;
+	}
+
+	// check that the authenticated URI and server URI match
+	if($data['uri'] != $_SERVER['REQUEST_URI']) {
+		fhft_log(LogLevel::DEBUG, "User  " . $username. " tried to log using unmatching URI in auth and server request");
+		return;
+	}
+
+	// Check opaque is correct(even if we use a fixed value: md5($realm))
+	if(!hash_equals(md5($realm), $data['opaque'])) {
+		fhft_log(LogLevel::DEBUG, "User  " . $username. " tried to log using invalid auth opaque value");
+		return;
+	}
+
+	// Get the password/hash from database
+	$db = auth_get_db_conn();
+	$stmt = $db->prepare(AUTH_QUERY);
+	if (!$stmt) {
+		fhft_log(LogLevel::ERROR, "Unable to execute ".AUTH_QUERY.".\nDebugging errno: " . mysqli_connect_errno() . "\nDebugging error: " . mysqli_connect_error() . "\n");
+		return;
+	}
+	if ($stmt->param_count == 1) {
+		$stmt->bind_param('s', $username); // compatibility with older config files: realm is not included in the query
+	} else {
+		$stmt->bind_param('ss', $username, $realm);
+	}
+	$stmt->execute();
+
+        // Default requested to MD5 if not specified in header
+	if (array_key_exists('algorithm', $data)) {
+		$requested_algorithm = $data['algorithm'];
+	} else {
+		$requested_algorithm = 'MD5';
+	}
+
+	$password = null;
+	if ($query_result = $stmt->get_result()) {
+		while ($row = $query_result->fetch_assoc()) {
+			$password = $row['password'];
+			$algorithm = $row['algorithm'];
+			if ($algorithm == 'CLRTXT') {
+				fhft_log(LogLevel::DEBUG, "User  " . $username. " using clear text password from db \n");
+				break; // with clear text password, we can reconstruct MD5 or SHA256 hash, don't parse anything else from base
+			} elseif ($algorithm == $requested_algorithm ) {
+				fhft_log(LogLevel::DEBUG, "User  " . $username. " using ". $row['algorithm'] ." password from db \n");
+				break; // we found the requested hash in base, don't parse anything else
+			} else { // algo used to store the password in base won't allow to reconstruct the one given in the header, keep parsing query result
+				$password = null;
+				$algorithm = null;
+			}
+		}
+	}
+
+	$stmt->close();
+	$db->close();
+
+	if (is_null($password)) {
+		fhft_log (LogLevel::ERROR, "Unable to find password for User: " . $username . " in format " . $requested_algorithm );
+		return;
+	}
+
+
+	//select right hash
+	switch ($requested_algorithm) {
+		case 'MD5':
+			$hash_algo = 'md5';
+			break;
+		case 'SHA-256':
+			$hash_algo = 'sha256';
+			break;
+		default:
+			fhft_log(LogLevel::ERROR, "Unsupported algo " . $requested_algorithm . " for User:" . $username ."\n");
+			break;
+	}
+
+	if ($algorithm == 'CLRTXT') {
+		$A1 = hash($hash_algo, $username.':'.$data['realm'].':'.$password);
+	} else {
+		$A1 = $password;
+	}
+
+	$A2 = hash($hash_algo, getenv('REQUEST_METHOD').':'.$data['uri']);
+	$valid_response = hash($hash_algo, $A1.':'.$data['nonce'].':'.$data['nc'].':'.$data['cnonce'].':'.$data['qop'].':'.$A2);
+
+	// Compare with the client response
+	if(hash_equals($valid_response, $data['response'])) {
+		return $username;
+	} else {
+		return;
+	}
+}
 
 function upload_error_message($error) {
 	$message = 'Error uploading file';
@@ -84,13 +283,7 @@ function upload_error_message($error) {
 }
 
 function bad_request() {
-	if (!function_exists('http_response_code')) {
-                $protocol = (isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0');
-                header($protocol . ' 400 Bad Request');
-                $GLOBALS['http_response_code'] = 400;
-        } else {
-                http_response_code(400);
-        }
+	http_response_code(400);
 	exit();
 }
 
@@ -111,69 +304,132 @@ function check_server_settings() {
 	}
 }
 
-// first check server settings
-check_server_settings();
+function process_request() {
+	if (count($_FILES) != 0) {
+		$rcvname=$_FILES['File']['name'];
+		$ext= strtolower(pathinfo($rcvname, PATHINFO_EXTENSION));
 
-if (count($_FILES) != 0) {
-	$rcvname=$_FILES['File']['name'];
-	$ext= strtolower(pathinfo($rcvname, PATHINFO_EXTENSION));
+		// if file extension is black listed, append the fallback extension to it
+		if (in_array(strtolower($ext), fhft_extension_black_list)) $ext.=".".fhft_extension_fallback;
 
-	// if file extension is black listed, append the fallback extension to it
-	if (in_array(strtolower($ext), fhft_extension_black_list)) $ext.=".".fhft_extension_fallback;
+		$tmpfile=$_FILES['File']['tmp_name'];
+		if (strlen($tmpfile) <= 0) {
+			fhft_log(logLevel::ERROR, upload_error_message($_FILES['File']['error']));
+			bad_request();
+		}
 
-	$tmpfile=$_FILES['File']['tmp_name'];
-	if (strlen($tmpfile) <= 0) {
-		fhft_log(logLevel::ERROR, upload_error_message($_FILES['File']['error']));
-		bad_request();
-	}
+		if ($_FILES['File']['error'] === UPLOAD_ERR_INI_SIZE) {
+			//File too large
+	                fhft_log(logLevel::ERROR, upload_error_message($_FILES['File']['error']));
+			bad_request();
+		} else {
+			fhft_log(logLevel::DEBUG, 'Uploaded '.$rcvname.' to '.$tmpfile);
+			$uploadfile = fhft_tmp_path.uniqid()."_".bin2hex(openssl_random_pseudo_bytes(10)).".$ext";
 
-	if ($_FILES['File']['error'] === UPLOAD_ERR_INI_SIZE) {
-		//File too large
-                fhft_log(logLevel::ERROR, upload_error_message($_FILES['File']['error']));
-		bad_request();
-	} else {
-		fhft_log(logLevel::DEBUG, 'Uploaded '.$rcvname.' to '.$tmpfile);
-		$uploadfile = fhft_tmp_path.uniqid()."_".bin2hex(openssl_random_pseudo_bytes(10)).".$ext";
+			if (move_uploaded_file($tmpfile, $uploadfile)) {
+				fhft_log(logLevel::DEBUG, 'Moved to '.$uploadfile);
+				if (isset($_SERVER['SERVER_NAME'])) {
+					$ipport = $_SERVER['SERVER_NAME'];
+				} else {
+					// This is not recommended because in case of HA
+					// this will return the meta named use to reach the server
+					// and not the real domain of the server hosting the file
+					$ipport = $_SERVER['HTTP_HOST'];
+				}
+			        $prefix= (isset($_SERVER["HTTPS"]) && strtolower($_SERVER["HTTPS"])=="on")?"https":"http";
+				$start= $prefix."://".$ipport.':'.$_SERVER['SERVER_PORT'].dirname($_SERVER['REQUEST_URI']);
+				$http_url = $start."/tmp/".basename($uploadfile); // file will be served in the ./tmp/ directory on the server path
 
-		if (move_uploaded_file($tmpfile, $uploadfile)) {
-			fhft_log(logLevel::DEBUG, 'Moved to '.$uploadfile);
-			if (isset($_SERVER['SERVER_NAME'])) {
-				$ipport = $_SERVER['SERVER_NAME'];
+				// valid until now + validity period
+				$until = date("Y-m-d\TH:i:s\Z",time()+fhft_validity_period);
+				echo '<?xml version="1.0" encoding="UTF-8"?>';
+					echo '<file xmlns="urn:gsma:params:xml:ns:rcs:rcs:fthttp">';
+						echo '<file-info type="file">';
+							echo '<file-size>'.$_FILES['File']['size'].'</file-size>';
+							echo '<file-name>'.$_FILES['File']['name'].'</file-name>';
+							echo '<content-type>'.$_FILES['File']['type'].'</content-type>';
+							echo '<data url = "'.$http_url.'" until = "'.$until.'"/>';
+						echo '</file-info>';
+					echo '</file>';
+				exit();
 			} else {
-				// This is not recommended because in case of HA
-				// this will return the meta named use to reach the server
-				// and not the real domain of the server hosting the file
-				$ipport = $_SERVER['HTTP_HOST'];
+				fhft_log(logLevel::ERROR, upload_error_message("Unable to move uploaded file ".$tmp_file."(".$rcvname.") to ".$uploadfile));
+				http_response_code(500);
+				exit();
 			}
-		        $prefix= (isset($_SERVER["HTTPS"]) && strtolower($_SERVER["HTTPS"])=="on")?"https":"http";
-			$start= $prefix."://".$ipport.':'.$_SERVER['SERVER_PORT'].dirname($_SERVER['REQUEST_URI']);
-			$http_url = $start."/tmp/".basename($uploadfile); // file will be served in the ./tmp/ directory on the server path
-
-			// valid until now + validity period
-			$until = date("Y-m-d\TH:i:s\Z",time()+fhft_validity_period);
-			echo '<?xml version="1.0" encoding="UTF-8"?><file xmlns="urn:gsma:params:xml:ns:rcs:rcs:fthttp">
-<file-info type="file">
-<file-size>'.$_FILES['File']['size'].'</file-size>
-<file-name>'.$_FILES['File']['name'].'</file-name>
-<content-type>'.$_FILES['File']['type'].'</content-type>
-<data url = "'.$http_url.'" until = "'.$until.'"/>
-</file-info>
-</file>';
-exit();
 		}
 	}
+
 }
 
+// first check server settings
+check_server_settings();
 if (isset($_SERVER['CONTENT_LENGTH']) && (int) $_SERVER['CONTENT_LENGTH'] > (1024*1024*(int) ini_get('post_max_size'))) {
 	// File too large
+        fhft_log(logLevel::ERROR, upload_error_message(" File too big - max post size is ".(ini_get('post_max_size'))." MB"));
 	bad_request();
-} else if ((count($_POST) == 0) && (count($_FILES) == 0)) {
-	if (!function_exists('http_response_code')) {
-		$protocol = (isset($_SERVER['SERVER_PROTOCOL']) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0');
-                header($protocol . ' 204 No Content');
-		$GLOBALS['http_response_code'] = 204;
+}
+
+// If digest auth is enabled
+if (defined("DIGEST_AUTH") && DIGEST_AUTH === true) {
+	// Check the configuration
+	if (!defined("AUTH_NONCE_KEY") || strlen(AUTH_NONCE_KEY) < 12) {
+		fhft_log(LogLevel::ERROR, "Your file transfer server is badly configured, please set a random string in AUTH_NONCE_KEY at least 12 characters long");
+		http_response_code(500);
+		exit();
+	}
+
+	$headers = getallheaders();
+        // From is the GRUU('sip(s):username@auth_realm;gr=*;) or just a sip:uri(sip(s):username@auth_realm), we need to extract the username from it:
+        // from position of : until the first occurence of @
+        // pass it through rawurldecode has GRUU may contain escaped characters
+        $username_start_pos = strpos($headers['From'], ':') +1;
+        $username_end_pos = strpos($headers['From'], '@');
+        $username = rawurldecode(substr($headers['From'], $username_start_pos, $username_end_pos - $username_start_pos));
+        $username_end_pos++; // point to the begining of the realm
+        if (!defined("AUTH_REALM")) {
+                if (strpos($headers['From'], ';') === FALSE ) { // From holds a sip:uri
+                        $auth_realm = rawurldecode(substr($headers['From'], $username_end_pos));
+                } else { // From holds a GRUU
+                        $auth_realm = rawurldecode(substr($headers['From'], $username_end_pos, strpos($headers['From'], ';') - $username_end_pos ));
+                }
+        } else {
+                $auth_realm = AUTH_REALM;
+        }
+
+	// Get authentication header if there is one
+	if (!empty($headers['Auth-Digest'])) {
+		fhft_log(LogLevel::DEBUG, "Auth-Digest = " . $headers['Auth-Digest']);
+		$authorization = $headers['Auth-Digest'];
+	} elseif (!empty($headers['Authorization'])) {
+		fhft_log(LogLevel::DEBUG, "Authorization = " . $headers['Authorization']);
+		$authorization = $headers['Authorization'];
+	}
+
+	// Authentication
+	if (!empty($authorization)) {
+		fhft_log(LogLevel::DEBUG, "There is a digest authentication header for " . $headers['From'] ." (username ".$username." requesting Auth on realm ".$auth_realm." )");
+		$authenticated_username = authenticate($authorization, $auth_realm);
+
+		if ($authenticated_username != '') {
+			fhft_log(LogLevel::DEBUG, "Authentication successful for " . $headers['From'] ."with username ".$username);
+			process_request();
+		} else {
+			fhft_log(LogLevel::DEBUG, "Authentication failed for " . $headers['From'] . " requesting authorization for user ".$username);
+			request_authentication($auth_realm, $username);
+		}
 	} else {
+		fhft_log(LogLevel::DEBUG, "There is no authentication digest header for " . $headers['From'] . " requesting authorization for user ".$username);
+		request_authentication($auth_realm,$username);
+	}
+} else { // No digest auth
+	if (count($_FILES) != 0) {
+		process_request();
+	}
+	// Send back a 204 - see RCS doc section section 3.5.4.8
+	if ((count($_POST) == 0) && (count($_FILES) == 0)) {
 		http_response_code(204);
 	}
 }
+
 ?>

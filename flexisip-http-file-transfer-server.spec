@@ -9,7 +9,7 @@
 #%define _datadir           %{_datarootdir}
 #%define _docdir            %{_datadir}/doc
 
-%define build_number 3
+%define build_number 4
 #%if %{build_number}
 #%define build_number_ext -%{build_number}
 #%endif
@@ -85,6 +85,8 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Thu Nov 12 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
+- Add digest authentification
 * Tue Apr 7 2020 Johan Pascal <johan.pascal@belledonne-communications.com>
 - Add crontab configuration file
 * Wed Apr 1 2020 Johan Pascal <johan.pascal@belledonne-communications.com>

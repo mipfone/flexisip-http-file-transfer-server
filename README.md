@@ -18,6 +18,7 @@ Configuration
 The configuration file is in */etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf*
 If you modify there the path to the upload directory, you might have to also modify the apache configuration file(httpd/conf.d/flexisip-http-file-transfer-server.conf)
 
+Maximum uploaded file size can be limited. The apache configuration file set the limit to 512 MB, this limit can be decreased in the file server configuration.
 
 User Authentication
 -------------------

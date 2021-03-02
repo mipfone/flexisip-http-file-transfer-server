@@ -32,45 +32,55 @@ function process_request() {
 			bad_request();
 		}
 
+		// Check system upload size - can we actually reach this point if the upload size is too big the php script won't run
 		if ($_FILES['File']['error'] === UPLOAD_ERR_INI_SIZE) {
-			//File too large
+			//File too large - system limit
 	                fhft_log(logLevel::ERROR, upload_error_message($_FILES['File']['error']));
 			bad_request();
-		} else {
-			fhft_log(logLevel::DEBUG, 'Uploaded '.$rcvname.' to '.$tmpfile);
-			$uploadfile = fhft_tmp_path.uniqid()."_".bin2hex(openssl_random_pseudo_bytes(10)).".$ext";
+		}
 
-			if (move_uploaded_file($tmpfile, $uploadfile)) {
-				fhft_log(logLevel::DEBUG, 'Moved to '.$uploadfile);
-				if (isset($_SERVER['SERVER_NAME'])) {
-					$ipport = $_SERVER['SERVER_NAME'];
-				} else {
-					// This is not recommended because in case of HA
-					// this will return the meta named use to reach the server
-					// and not the real domain of the server hosting the file
-					$ipport = $_SERVER['HTTP_HOST'];
-				}
-			        $prefix= (isset($_SERVER["HTTPS"]) && strtolower($_SERVER["HTTPS"])=="on")?"https":"http";
-				$start= $prefix."://".$ipport.':'.$_SERVER['SERVER_PORT'].dirname($_SERVER['REQUEST_URI']);
-				$http_url = $start."/tmp/".basename($uploadfile); // file will be served in the ./tmp/ directory on the server path
-
-				// valid until now + validity period
-				$until = date("Y-m-d\TH:i:s\Z",time()+fhft_validity_period);
-				echo '<?xml version="1.0" encoding="UTF-8"?>';
-					echo '<file xmlns="urn:gsma:params:xml:ns:rcs:rcs:fthttp">';
-						echo '<file-info type="file">';
-							echo '<file-size>'.$_FILES['File']['size'].'</file-size>';
-							echo '<file-name>'.$_FILES['File']['name'].'</file-name>';
-							echo '<content-type>'.$_FILES['File']['type'].'</content-type>';
-							echo '<data url = "'.$http_url.'" until = "'.$until.'"/>';
-						echo '</file-info>';
-					echo '</file>';
-				exit();
-			} else {
-				fhft_log(logLevel::ERROR, upload_error_message("Unable to move uploaded file ".$tmp_file."(".$rcvname.") to ".$uploadfile));
-				http_response_code(500);
-				exit();
+		// Check the configured upload size
+		if (defined("fhft_maximum_file_size_in_MB") && fhft_maximum_file_size_in_MB>0) {
+			if ($_FILES['File']['size']/1024/1024 > fhft_maximum_file_size_in_MB) {
+				//File too large - config limit
+				fhft_log(logLevel::ERROR, "Error uploading file ".$rcvname." size ".($_FILES['File']['size']/1024/1024)." MB larger than configured limit ".fhft_maximum_file_size_in_MB." MB");
+				bad_request();
 			}
+		}
+
+		fhft_log(logLevel::DEBUG, 'Uploaded '.$rcvname.' to '.$tmpfile);
+		$uploadfile = fhft_tmp_path.uniqid()."_".bin2hex(openssl_random_pseudo_bytes(10)).".$ext";
+
+		if (move_uploaded_file($tmpfile, $uploadfile)) {
+			fhft_log(logLevel::DEBUG, 'Moved to '.$uploadfile);
+			if (isset($_SERVER['SERVER_NAME'])) {
+				$ipport = $_SERVER['SERVER_NAME'];
+			} else {
+				// This is not recommended because in case of HA
+				// this will return the meta named use to reach the server
+				// and not the real domain of the server hosting the file
+				$ipport = $_SERVER['HTTP_HOST'];
+			}
+		        $prefix= (isset($_SERVER["HTTPS"]) && strtolower($_SERVER["HTTPS"])=="on")?"https":"http";
+			$start= $prefix."://".$ipport.':'.$_SERVER['SERVER_PORT'].dirname($_SERVER['REQUEST_URI']);
+			$http_url = $start."/tmp/".basename($uploadfile); // file will be served in the ./tmp/ directory on the server path
+
+			// valid until now + validity period
+			$until = date("Y-m-d\TH:i:s\Z",time()+fhft_validity_period);
+			echo '<?xml version="1.0" encoding="UTF-8"?>';
+				echo '<file xmlns="urn:gsma:params:xml:ns:rcs:rcs:fthttp">';
+					echo '<file-info type="file">';
+						echo '<file-size>'.$_FILES['File']['size'].'</file-size>';
+						echo '<file-name>'.$_FILES['File']['name'].'</file-name>';
+						echo '<content-type>'.$_FILES['File']['type'].'</content-type>';
+						echo '<data url = "'.$http_url.'" until = "'.$until.'"/>';
+					echo '</file-info>';
+				echo '</file>';
+			exit();
+		} else {
+			fhft_log(logLevel::ERROR, upload_error_message("Unable to move uploaded file ".$tmp_file."(".$rcvname.") to ".$uploadfile));
+			http_response_code(500);
+			exit();
 		}
 	}
 }

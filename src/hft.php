@@ -78,10 +78,13 @@ function process_request() {
 				echo '</file>';
 			exit();
 		} else {
-			fhft_log(logLevel::ERROR, upload_error_message("Unable to move uploaded file ".$tmp_file."(".$rcvname.") to ".$uploadfile));
+			fhft_log(logLevel::ERROR, "Unable to move uploaded file ".$tmp_file."(".$rcvname.") to ".$uploadfile);
 			http_response_code(500);
 			exit();
 		}
+	} else {
+		fhft_log(logLevel::ERROR, "HTTP File Upload variables not populated");
+		bad_request();
 	}
 }
 
@@ -89,7 +92,7 @@ function process_request() {
 check_server_settings();
 if (isset($_SERVER['CONTENT_LENGTH']) && (int) $_SERVER['CONTENT_LENGTH'] > (1024*1024*(int) ini_get('post_max_size'))) {
 	// File too large
-        fhft_log(logLevel::ERROR, upload_error_message(" File too big - max post size is ".(ini_get('post_max_size'))." MB"));
+        fhft_log(logLevel::ERROR, "File too big - max post size is ".(ini_get('post_max_size'))." MB");
 	bad_request();
 }
 

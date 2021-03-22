@@ -55,7 +55,7 @@ function fhft_log($level, $message) {
 // but give a chance to the webserver to configure it
 $config_file= "/etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf";
 if (isset($_SERVER["flexisip_http_file_transfer_config_path"])) {
-        $config_file=$_SERVER["flexisip_http_file_transfer_config_path"];
+	$config_file=$_SERVER["flexisip_http_file_transfer_config_path"];
 }
 include $config_file;
 
@@ -191,7 +191,7 @@ function authenticate($auth_digest, $realm = "sip.example.org") {
 	$stmt->bind_param('ss', $username, $realm);
 	$stmt->execute();
 
-        // Default requested to MD5 if not specified in header
+	// Default requested to MD5 if not specified in header
 	if (array_key_exists('algorithm', $data)) {
 		$requested_algorithm = $data['algorithm'];
 	} else {
@@ -257,24 +257,24 @@ function authenticate($auth_digest, $realm = "sip.example.org") {
 
 function upload_error_message($error) {
 	$message = 'Error uploading file';
-        switch($error) {
-            case UPLOAD_ERR_OK:
-                $message = false;;
-                break;
-            case UPLOAD_ERR_INI_SIZE:
-            case UPLOAD_ERR_FORM_SIZE:
-                $message .= ' - file too large (limit of '. ini_get('upload_max_filesize') .' bytes).';
-                break;
-            case UPLOAD_ERR_PARTIAL:
-                $message .= ' - file upload was not completed.';
-                break;
-            case UPLOAD_ERR_NO_FILE:
-                $message .= ' - zero-length file uploaded.';
-                break;
-            default:
-                $message .= ' - internal error #'. $error;
-                break;
-        }
+	switch($error) {
+	    case UPLOAD_ERR_OK:
+		$message = false;;
+		break;
+	    case UPLOAD_ERR_INI_SIZE:
+	    case UPLOAD_ERR_FORM_SIZE:
+		$message .= ' - file too large (limit of '. ini_get('upload_max_filesize') .' bytes).';
+		break;
+	    case UPLOAD_ERR_PARTIAL:
+		$message .= ' - file upload was not completed.';
+		break;
+	    case UPLOAD_ERR_NO_FILE:
+		$message .= ' - zero-length file uploaded.';
+		break;
+	    default:
+		$message .= ' - internal error #'. $error;
+		break;
+	}
 	return $message;
 }
 
@@ -297,6 +297,74 @@ function check_server_settings() {
 		default:
 			error_log("fhft log level setting is invalid ".fhft_logLevel.". Disable flexisip http file transfer logs");
 			define ("fhft_logLevel", LogLevel::DISABLED);
+	}
+}
+
+// First check if the user connected with a client certificate
+//  - yes: auth Ok, return true
+//  - no: is digest auth enable?
+//  	- yes: perform digest auth
+//  	- no: no auth requested, return true
+function check_user_authentication() {
+	if ($_SERVER['SSL_CLIENT_VERIFY'] == 'SUCCESS') {
+		fhft_log(LogLevel::DEBUG, "Authentication successful using TLS client certificate from ".$_SERVER['HTTP_FROM']);
+		return true;
+	}
+
+	if (defined("DIGEST_AUTH") && DIGEST_AUTH === true) {
+		// Check the configuration
+		if (!defined("AUTH_NONCE_KEY") || strlen(AUTH_NONCE_KEY) < 12) {
+			fhft_log(LogLevel::ERROR, "Your file transfer server is badly configured, please set a random string in AUTH_NONCE_KEY at least 12 characters long");
+			http_response_code(500);
+			exit();
+		}
+
+		$headers = getallheaders();
+		// From is the GRUU('sip(s):username@auth_realm;gr=*;) or just a sip:uri(sip(s):username@auth_realm), we need to extract the username from it:
+		// from position of : until the first occurence of @
+		// pass it through rawurldecode has GRUU may contain escaped characters
+		$username_start_pos = strpos($headers['From'], ':') +1;
+		$username_end_pos = strpos($headers['From'], '@');
+		$username = rawurldecode(substr($headers['From'], $username_start_pos, $username_end_pos - $username_start_pos));
+		$username_end_pos++; // point to the begining of the realm
+		if (!defined("AUTH_REALM")) {
+			if (strpos($headers['From'], ';') === FALSE ) { // From holds a sip:uri
+				$auth_realm = rawurldecode(substr($headers['From'], $username_end_pos));
+			} else { // From holds a GRUU
+				$auth_realm = rawurldecode(substr($headers['From'], $username_end_pos, strpos($headers['From'], ';') - $username_end_pos ));
+			}
+		} else {
+			$auth_realm = AUTH_REALM;
+		}
+
+		// Get authentication header if there is one
+		if (!empty($headers['Auth-Digest'])) {
+			fhft_log(LogLevel::DEBUG, "Auth-Digest = " . $headers['Auth-Digest']);
+			$authorization = $headers['Auth-Digest'];
+		} elseif (!empty($headers['Authorization'])) {
+			fhft_log(LogLevel::DEBUG, "Authorization = " . $headers['Authorization']);
+			$authorization = $headers['Authorization'];
+		}
+
+		// Authentication
+		if (!empty($authorization)) {
+			fhft_log(LogLevel::DEBUG, "There is a digest authentication header for " . $headers['From'] ." (username ".$username." requesting Auth on realm ".$auth_realm." )");
+			$authenticated_username = authenticate($authorization, $auth_realm);
+
+			if ($authenticated_username != '') {
+				fhft_log(LogLevel::DEBUG, "Authentication successful for " . $headers['From'] ."with username ".$username);
+				return true;
+			} else {
+				fhft_log(LogLevel::DEBUG, "Authentication failed for " . $headers['From'] . " requesting authorization for user ".$username);
+				request_authentication($auth_realm, $username);
+			}
+		} else {
+			fhft_log(LogLevel::DEBUG, "There is no authentication digest header for " . $headers['From'] . " requesting authorization for user ".$username);
+			request_authentication($auth_realm,$username);
+		}
+	} else {
+		// no auth requested
+		return true;
 	}
 }
 ?>

@@ -96,63 +96,16 @@ if (isset($_SERVER['CONTENT_LENGTH']) && (int) $_SERVER['CONTENT_LENGTH'] > (102
 	bad_request();
 }
 
-// If digest auth is enabled
-if (defined("DIGEST_AUTH") && DIGEST_AUTH === true) {
-	// Check the configuration
-	if (!defined("AUTH_NONCE_KEY") || strlen(AUTH_NONCE_KEY) < 12) {
-		fhft_log(LogLevel::ERROR, "Your file transfer server is badly configured, please set a random string in AUTH_NONCE_KEY at least 12 characters long");
-		http_response_code(500);
-		exit();
+// If digest auth is enabled, check it pass - skip it if the user passed a TLS client authentication
+if (defined("DIGEST_AUTH") && DIGEST_AUTH === true && ($_SERVER['SSL_CLIENT_VERIFY'] != 'SUCCESS')) {
+	if (check_user_authentication() === true) {
+		process_request();
 	}
-
-	$headers = getallheaders();
-        // From is the GRUU('sip(s):username@auth_realm;gr=*;) or just a sip:uri(sip(s):username@auth_realm), we need to extract the username from it:
-        // from position of : until the first occurence of @
-        // pass it through rawurldecode has GRUU may contain escaped characters
-        $username_start_pos = strpos($headers['From'], ':') +1;
-        $username_end_pos = strpos($headers['From'], '@');
-        $username = rawurldecode(substr($headers['From'], $username_start_pos, $username_end_pos - $username_start_pos));
-        $username_end_pos++; // point to the begining of the realm
-        if (!defined("AUTH_REALM")) {
-                if (strpos($headers['From'], ';') === FALSE ) { // From holds a sip:uri
-                        $auth_realm = rawurldecode(substr($headers['From'], $username_end_pos));
-                } else { // From holds a GRUU
-                        $auth_realm = rawurldecode(substr($headers['From'], $username_end_pos, strpos($headers['From'], ';') - $username_end_pos ));
-                }
-        } else {
-                $auth_realm = AUTH_REALM;
-        }
-
-	// Get authentication header if there is one
-	if (!empty($headers['Auth-Digest'])) {
-		fhft_log(LogLevel::DEBUG, "Auth-Digest = " . $headers['Auth-Digest']);
-		$authorization = $headers['Auth-Digest'];
-	} elseif (!empty($headers['Authorization'])) {
-		fhft_log(LogLevel::DEBUG, "Authorization = " . $headers['Authorization']);
-		$authorization = $headers['Authorization'];
-	}
-
-	// Authentication
-	if (!empty($authorization)) {
-		fhft_log(LogLevel::DEBUG, "There is a digest authentication header for " . $headers['From'] ." (username ".$username." requesting Auth on realm ".$auth_realm." )");
-		$authenticated_username = authenticate($authorization, $auth_realm);
-
-		if ($authenticated_username != '') {
-			fhft_log(LogLevel::DEBUG, "Authentication successful for " . $headers['From'] ."with username ".$username);
-			process_request();
-		} else {
-			fhft_log(LogLevel::DEBUG, "Authentication failed for " . $headers['From'] . " requesting authorization for user ".$username);
-			request_authentication($auth_realm, $username);
-		}
-	} else {
-		fhft_log(LogLevel::DEBUG, "There is no authentication digest header for " . $headers['From'] . " requesting authorization for user ".$username);
-		request_authentication($auth_realm,$username);
-	}
-} else { // No digest auth
+} else { // Digest auth disabled(or user already identified with TLS client certificate): must return a 204 on the first connection, when no file is uploaded (RCS doc section 3.5.4.8)
 	if (count($_FILES) != 0) {
 		process_request();
 	}
-	// Send back a 204 - see RCS doc section section 3.5.4.8
+	// Send back a 204
 	if ((count($_POST) == 0) && (count($_FILES) == 0)) {
 		http_response_code(204);
 	}

@@ -9,7 +9,7 @@
 #%define _datadir           %{_datarootdir}
 #%define _docdir            %{_datadir}/doc
 
-%define build_number 6
+%define build_number 7
 #%if %{build_number}
 #%define build_number_ext -%{build_number}
 #%endif
@@ -85,6 +85,8 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Mar 22 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
+- 1.0-7 Add proxy for strict multidomains configuration
 * Tue Mar 02 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
 - 1.0-6 File size limit can be configured in the configuration file
 * Mon Nov 16 2020 Johan Pascal <johan.pascal@belledonne-communications.com>

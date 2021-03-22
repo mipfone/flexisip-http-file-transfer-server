@@ -18,78 +18,115 @@
  */
 include("common.php");
 
+// This function is available from PHP8
+if (!function_exists('str_ends_with')) {
+	function str_ends_with(string $haystack, string $needle) {
+		$rpos = strrpos($haystack, $needle);
+		if ($rpos === false) {
+			return false;
+		}
+		return ((strlen($haystack) - strlen($needle)) == $rpos);
+	}
+}
+
 function process_request() {
-	$file = fhft_tmp_path.basename($_SERVER["REQUEST_URI"]);
-        if (file_exists($file)) {
-                fhft_log(logLevel::DEBUG,"Download script serve file ".$file);
-                header('Content-Description: File Transfer');
-                header('Content-Type: application/octet-stream');
-                header('Content-Disposition: attachment; filename="'.basename($file).'"');
-                header('Content-Length: ' . filesize($file));
-                readfile($file);
-        } else {
-                fhft_log(logLevel::DEBUG,"Download script requested to serve ".$file." but it cannot be found");
-                http_response_code(404);
-        }
-        exit();
+	// Are we a file proxy? : configured for(PROXY_SELF_DOMAIN defined) and the url requested passed in target arg?
+	if (defined("PROXY_SELF_DOMAIN") && (strlen("PROXY_SELF_DOMAIN") > 0) && array_key_exists("target", $_GET)) {
+		$target_url = $_GET["target"] ;
+		// Check the requested url
+		$url = parse_url($target_url);
+		if ($url === false || !array_key_exists("host", $url) || (strlen($url["host"])==0)) { // malformed URL
+			fhft_log(logLevel::ERROR,"Proxy request invalid URL ".$target_url);
+			http_response_code(404);
+			exit();
+		}
+		$target_host = $url["host"];
+
+		// Is the file requested on our domain?
+		if (str_ends_with($target_host, PROXY_SELF_DOMAIN) !== false) {
+			fhft_log(logLevel::DEBUG,"Download script acting as proxy on domain ".PROXY_SELF_DOMAIN." file ".$target_url." served locally");
+			$file = fhft_tmp_path.basename($target_url);
+		} else {
+			fhft_log(logLevel::DEBUG,"Download script acting as proxy on domain ".PROXY_SELF_DOMAIN." requests file ".$target_url." Request server ".$target_host." for the file");
+			// Do we have this foreign domain
+			unset($local_cert_path);
+			if (defined("FOREIGN_DOMAINS") && is_array(FOREIGN_DOMAINS)) {
+				foreach (FOREIGN_DOMAINS as $domain => $client_cert) {
+					if (str_ends_with($target_host, $domain) === true) { // We have a client cert for this external domain
+						$local_cert_path = $client_cert;
+					}
+				}
+			}
+			if (!isset($local_cert_path)) {
+				fhft_log(logLevel::ERROR,"Download script acting as proxy on domain ".PROXY_SELF_DOMAIN." queries server ".$target_host." for a file. But we do not have credentials to log on this server");
+				http_response_code(404);
+				exit();
+
+			}
+			// Create the context to connect the other server
+			if (defined("FOREIGN_DOMAINS_CAFILE")) {
+				$cafile = FOREIGN_DOMAINS_CAFILE;
+			} else {
+				$cafile = '';
+			}
+			$options = array(
+				'http' => array(
+					'header'  => "From:".PROXY_SELF_DOMAIN."\r\n",
+					'method'  => 'GET'
+				),
+				'ssl' => array(
+					'cafile' => $cafile,
+					'local_cert' => $local_cert_path
+				)
+			);
+			$context  = stream_context_create($options);
+
+			// open the file on the remote server
+			$fp = fopen($target_url, 'rb', false, $context);
+			if ($fp === false) {
+				fhft_log(logLevel::ERROR,"Download script acting as proxy on domain ".PROXY_SELF_DOMAIN." queries server ".$target_host." for a file. Fail to open the requested URL : ".$target_url);
+				http_response_code(404);
+				exit();
+			}
+
+			// Get headers from the response to fopen
+			if (isset($http_response_header) && is_array($http_response_header)) {
+				foreach($http_response_header as $header) {
+					// forward only Content- related header
+					if (stripos($header, "Content") === 0) {
+						header($header);
+					}
+				}
+			}
+
+			// and the file content
+			fpassthru($fp);
+			fclose($fp);
+			exit();
+		}
+	} else { // URL was the direct request, we are not a proxy, just serve it if we have it
+		$file = fhft_tmp_path.basename($_SERVER["REQUEST_URI"]);
+	}
+
+	if (file_exists($file)) {
+		fhft_log(logLevel::DEBUG,"Download script serve file ".$file);
+		header('Content-Description: File Transfer');
+		header('Content-Type: application/octet-stream');
+		header('Content-Disposition: attachment; filename="'.basename($file).'"');
+		header('Content-Length: ' . filesize($file));
+		readfile($file);
+	} else {
+		fhft_log(logLevel::ERROR,"Download script requested to serve ".$file." but it cannot be found");
+		http_response_code(404);
+	}
+	exit();
 }
 
 // first check server settings
 check_server_settings();
 
-// If digest auth is enabled
-if (defined("DIGEST_AUTH") && DIGEST_AUTH === true) {
-	// Check the configuration
-	if (!defined("AUTH_NONCE_KEY") || strlen(AUTH_NONCE_KEY) < 12) {
-		fhft_log(LogLevel::ERROR, "Your file transfer server is badly configured, please set a random string in AUTH_NONCE_KEY at least 12 characters long");
-		http_response_code(500);
-		exit();
-	}
-
-	$headers = getallheaders();
-        // From is the GRUU('sip(s):username@auth_realm;gr=*;) or just a sip:uri(sip(s):username@auth_realm), we need to extract the username from it:
-        // from position of : until the first occurence of @
-        // pass it through rawurldecode has GRUU may contain escaped characters
-        $username_start_pos = strpos($headers['From'], ':') +1;
-        $username_end_pos = strpos($headers['From'], '@');
-        $username = rawurldecode(substr($headers['From'], $username_start_pos, $username_end_pos - $username_start_pos));
-        $username_end_pos++; // point to the begining of the realm
-        if (!defined("AUTH_REALM")) {
-                if (strpos($headers['From'], ';') === FALSE ) { // From holds a sip:uri
-                        $auth_realm = rawurldecode(substr($headers['From'], $username_end_pos));
-                } else { // From holds a GRUU
-                        $auth_realm = rawurldecode(substr($headers['From'], $username_end_pos, strpos($headers['From'], ';') - $username_end_pos ));
-                }
-        } else {
-                $auth_realm = AUTH_REALM;
-        }
-
-	// Get authentication header if there is one
-	if (!empty($headers['Auth-Digest'])) {
-		fhft_log(LogLevel::DEBUG, "Auth-Digest = " . $headers['Auth-Digest']);
-		$authorization = $headers['Auth-Digest'];
-	} elseif (!empty($headers['Authorization'])) {
-		fhft_log(LogLevel::DEBUG, "Authorization = " . $headers['Authorization']);
-		$authorization = $headers['Authorization'];
-	}
-
-	// Authentication
-	if (!empty($authorization)) {
-		fhft_log(LogLevel::DEBUG, "There is a digest authentication header for " . $headers['From'] ." (username ".$username." requesting Auth on realm ".$auth_realm." )");
-		$authenticated_username = authenticate($authorization, $auth_realm);
-
-		if ($authenticated_username != '') {
-			fhft_log(LogLevel::DEBUG, "Authentication successful for " . $headers['From'] ."with username ".$username);
-			process_request();
-		} else {
-			fhft_log(LogLevel::DEBUG, "Authentication failed for " . $headers['From'] . " requesting authorization for user ".$username);
-			request_authentication($auth_realm, $username);
-		}
-	} else {
-		fhft_log(LogLevel::DEBUG, "There is no authentication digest header for " . $headers['From'] . " requesting authorization for user ".$username);
-		request_authentication($auth_realm,$username);
-	}
-} else { // No digest auth
+// Check user authentication and process the request
+if (check_user_authentication() === true) {
 	process_request();
 }
 

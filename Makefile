@@ -1,6 +1,10 @@
 $(eval GIT_DESCRIBE = $(shell sh -c "git describe"))
 OUTPUT_DIR = ${CURDIR}
-rpm:
+rpm: prepare
+	rpmbuild -v -bb  --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmdir $(OUTPUT_DIR)/rpmbuild/RPMS" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
+	rm -rf $(OUTPUT_DIR)/flexisip-http-file-transfer-server
+
+prepare:
 	rm -rf $(OUTPUT_DIR)/flexisip-http-file-transfer-server
 	mkdir $(OUTPUT_DIR)/flexisip-http-file-transfer-server
 	mkdir -p $(OUTPUT_DIR)/rpmbuild/SPECS
@@ -18,7 +22,10 @@ rpm:
 	cp flexisip-http-file-transfer-server.spec $(OUTPUT_DIR)/rpmbuild/SPECS/
 	tar cvf flexisip-http-file-transfer-server.tar.gz -C $(OUTPUT_DIR) flexisip-http-file-transfer-server
 	mv flexisip-http-file-transfer-server.tar.gz $(OUTPUT_DIR)/rpmbuild/SOURCES/flexisip-http-file-transfer-server.tar.gz
-	rpmbuild -v -bb  --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmdir $(OUTPUT_DIR)/rpmbuild" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
-	rm -rf $(OUTPUT_DIR)/flexisip-http-file-transfer-server
 
-.PHONY: rpm
+deb: prepare
+	rpmbuild -v -bb  --define "dist .deb" --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmdir $(OUTPUT_DIR)/rpmbuild/DEBS" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
+	rm -rf $(OUTPUT_DIR)/flexisip-http-file-transfer-server
+	cd $(OUTPUT_DIR)/rpmbuild/DEBS/x86_64/; alien -d -k *.rpm;
+
+.PHONY: all

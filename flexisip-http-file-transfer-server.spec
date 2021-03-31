@@ -1,5 +1,12 @@
 %define build_number 7
 
+%if "%{?dist}" == ".deb"
+%{echo:Packaging for Debian, apache user is www-data}
+%define apache_user www-data
+%else
+%{echo:Packaging for %{?dist}, expect apache user to be apache}
+%define apache_user apache
+%endif
 
 Name:           bc-flexisip-http-file-transfer-server
 Version:        1.0
@@ -40,7 +47,7 @@ cp cron.d/flexisip-http-file-transfer-server "$RPM_BUILD_ROOT/etc/cron.d"
 if [ $1 -eq 1 ] ; then
 mkdir -p /var/opt/belledonne-communications/log
 touch /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
-chown apache:apache /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
+chown %{apache_user}:%{apache_user} /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
 chcon -t httpd_sys_rw_content_t /var/opt/belledonne-communications/log/flexisip-http-file-transfer-server.log
 # it seems crontab daemon parses only fresh files, to be sure, touch this one when the install is done
 touch /etc/cron.d/flexisip-http-file-transfer-server
@@ -51,7 +58,7 @@ fi
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/README*
 /opt/belledonne-communications/share/flexisip-http-file-transfer-server/LICENSE.txt
 %dir
-%attr(744,apache,apache) /var/opt/belledonne-communications/flexisip-http-file-transfer-tmp
+%attr(744,%{apache_user},%{apache_user}) /var/opt/belledonne-communications/flexisip-http-file-transfer-tmp
 
 %config(noreplace) /etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf
 %config(noreplace) /opt/rh/httpd24/root/etc/httpd/conf.d/flexisip-http-file-transfer-server.conf

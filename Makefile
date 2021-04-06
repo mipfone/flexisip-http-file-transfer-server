@@ -26,6 +26,6 @@ prepare:
 deb: prepare
 	rpmbuild -v -bb  --define "dist .deb" --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmdir $(OUTPUT_DIR)/rpmbuild/DEBS" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
 	rm -rf $(OUTPUT_DIR)/flexisip-http-file-transfer-server
-	cd $(OUTPUT_DIR)/rpmbuild/DEBS/x86_64/; alien -d -k *.rpm;
+	cd $(OUTPUT_DIR)/rpmbuild/DEBS/x86_64/; fakeroot alien -d -k -c *.rpm;
 
 .PHONY: all

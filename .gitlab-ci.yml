@@ -12,7 +12,7 @@ job-centos7-rpm:
     - make rpm
   artifacts:
     paths:
-    - rpmbuild/x86_64/*.rpm
+    - rpmbuild/RPMS/x86_64/*.rpm
     when: always
     expire_in: 1 year
 
@@ -35,8 +35,86 @@ job-centos7-rpm-deploy:
     - job-centos7-rpm
 
   script:
-   - cd rpmbuild/x86_64 && rsync -e "ssh -o StrictHostKeyChecking=no" -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY
+   - cd rpmbuild/RPMS/x86_64 && rsync -e "ssh -o StrictHostKeyChecking=no" -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY
    - ssh $DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY/."
+
+job-debian10-deb:
+
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+
+  stage: package
+  script:
+    - sudo make deb
+  artifacts:
+    paths:
+    - rpmbuild/DEBS/x86_64/*.deb
+    when: always
+    expire_in: 1 year
+
+job-debian10-deb-deploy:
+
+  tags: [ "deploy" ]
+  stage: deploy
+
+  only:
+    refs:
+      - master
+    changes:
+      - flexisip-http-file-transfer-server.spec
+
+  variables:
+    RELEASE: buster
+    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
+  dependencies:
+    - job-debian10-deb
+
+  script:
+    - id=$(cat /dev/urandom | tr -dc '[:alnum:]' | fold -w 10 | head -n 1) || true
+    - tmpdir="$MAKE_REPO_TMP/tmp-$id" || true
+    - rsync_dest="$DEPLOY_SERVER:$tmpdir/"
+    - echo ">>> Pushing packages into '$rsync_dest'"
+    - rsync -rv rpmbuild/DEBS/x86_64/*.deb $rsync_dest
+    - ssh $DEPLOY_SERVER "echo \">>>> Making repository make_repo deb $tmpdir $FREIGHT_PATH $RELEASE\"; make_repo deb $tmpdir $FREIGHT_PATH $RELEASE || exit 1; echo \">>>> Removing '$tmpdir'\"; rm -r $tmpdir"
+
+job-ubuntu-18.04-deb:
+
+  tags: [ "docker" ]
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
+
+  stage: package
+  script:
+    - sudo make deb
+  artifacts:
+    paths:
+    - rpmbuild/DEBS/x86_64/*.deb
+    when: always
+    expire_in: 1 year
+
+job-ubuntu-18.04-deb-deploy:
+
+  tags: [ "deploy" ]
+  stage: deploy
+
+  only:
+    refs:
+      - master
+    changes:
+      - flexisip-http-file-transfer-server.spec
+
+  variables:
+    RELEASE: bionic
+    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
+  dependencies:
+    - job-ubuntu-18.04-deb
+
+  script:
+    - id=$(cat /dev/urandom | tr -dc '[:alnum:]' | fold -w 10 | head -n 1) || true
+    - tmpdir="$MAKE_REPO_TMP/tmp-$id" || true
+    - rsync_dest="$DEPLOY_SERVER:$tmpdir/"
+    - echo ">>> Pushing packages into '$rsync_dest'"
+    - rsync -rv rpmbuild/DEBS/x86_64/*.deb $rsync_dest
+    - ssh $DEPLOY_SERVER "echo \">>>> Making repository make_repo deb $tmpdir $FREIGHT_PATH $RELEASE\"; make_repo deb $tmpdir $FREIGHT_PATH $RELEASE || exit 1; echo \">>>> Removing '$tmpdir'\"; rm -r $tmpdir"
 
 
 stages:

@@ -1,4 +1,4 @@
-%define build_number 7
+%define build_number 8
 
 %if "%{?dist}" == ".deb"
 %{echo:Packaging for Debian, apache user is www-data}
@@ -79,6 +79,8 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Apr 19 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
+- 1.0-8 Debian/Ubuntu packaging
 * Mon Mar 22 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
 - 1.0-7 Add proxy for strict multidomains configuration
 * Tue Mar 02 2021 Johan Pascal <johan.pascal@belledonne-communications.com>

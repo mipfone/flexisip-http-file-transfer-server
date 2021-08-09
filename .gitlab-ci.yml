@@ -25,18 +25,11 @@ job-centos7-rpm-deploy:
   stage: deploy
   tags: [ "docker-centos7" ]
 
-  only:
-    refs:
-      - master
-    changes:
-      - flexisip-http-file-transfer-server.spec
-
   dependencies:
     - job-centos7-rpm
 
   script:
    - cd rpmbuild/RPMS/x86_64 && rsync -e "ssh -o StrictHostKeyChecking=no" -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY && rsync -e "ssh -o StrictHostKeyChecking=no" -pr . $DEPLOY_SERVER:$CENTOS7_DEPLOY_DIRECTORY_ALPHA
-   - ssh $DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY/."
    - ssh $DEPLOY_SERVER "chmod a+r $CENTOS7_DEPLOY_DIRECTORY_ALPHA/*.rpm && createrepo_c --update $CENTOS7_DEPLOY_DIRECTORY_ALPHA/."
 
 job-debian10-deb:

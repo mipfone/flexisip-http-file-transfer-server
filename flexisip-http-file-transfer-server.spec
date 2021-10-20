@@ -1,4 +1,4 @@
-%define build_number 8
+%define build_number 9
 
 %if "%{?dist}" == ".deb"
 %{echo:Packaging for Debian, apache user is www-data}
@@ -7,8 +7,16 @@
 %else
 %{echo:Packaging for %{?dist}, expect apache user to be apache}
 %define apache_user apache
+%endif
+
+%if "%{?dist}" == ".el7"
 %define apache_conf_path /opt/rh/httpd24/root/etc/httpd/conf.d
 %endif
+
+%if "%{?dist}" == ".el8"
+%define apache_conf_path /etc/httpd/conf.d
+%endif
+
 
 Name:           bc-flexisip-http-file-transfer-server
 Version:        1.0
@@ -79,6 +87,8 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Mon Apr 19 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
+- 1.0-9 Fix for Rocky Linux 8 (set apache_conf_dir to /etc/httpd... instead of /opt/rh...)
 * Mon Apr 19 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
 - 1.0-8 Debian/Ubuntu packaging
 * Mon Mar 22 2021 Johan Pascal <johan.pascal@belledonne-communications.com>

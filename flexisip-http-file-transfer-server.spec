@@ -47,6 +47,18 @@ cp -R LICENSE.txt "$RPM_BUILD_ROOT/opt/belledonne-communications/share/flexisip-
 mkdir -p "$RPM_BUILD_ROOT/etc/flexisip-http-file-transfer-server"
 cp -R flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/flexisip-http-file-transfer-server"
 mkdir -p $RPM_BUILD_ROOT%{apache_conf_path}
+%if "%{?dist}" == ".el7"
+#if we are using centos7, we probably need old way to set limits values for file sizes (php_* variables in apache conf)
+#we can uncomment the code
+# DISCLAIMER: This code is a TEMPORARY and NON-PORTABLE hack meant to be removed once the centos7 and old apache mode are dropped
+
+#each character enclosed in escaped brackets \(\) is captured, to be reused after. For example \(\t*\) means
+#that all indent characters are captured in group \1
+#The idea is that the comment characters are stored in group \2.
+#We only keep groups \1 and \3 in the resulting file, thus "uncommenting" the lines corresponding to \t*#*php_.*
+
+sed 's/\(\t*\)\(#*\)\(php_.*\)/\1\3/g' httpd/flexisip-http-file-transfer-server.conf > httpd/flexisip-http-file-transfer-server.conf
+%endif
 cp httpd/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT%{apache_conf_path}"
 mkdir -p $RPM_BUILD_ROOT/etc/logrotate.d
 cp logrotate/flexisip-http-file-transfer-server.conf "$RPM_BUILD_ROOT/etc/logrotate.d"

@@ -71,19 +71,30 @@ debian11-deb:
     changes:
       - flexisip-http-file-transfer-server.spec
 
+  before_script:
+    - TMP_LOCALE=$LC_CTYPE
+    - echo $LC_CTYPE
+
   script:
+    - export LC_CTYPE=C
     - id=$(cat /dev/urandom | tr -dc '[:alnum:]' | fold -w 10 | head -n 1) || true
     - tmpdir="$MAKE_REPO_TMP/tmp-$id" || true
     - rsync_dest="$DEPLOY_SERVER:$tmpdir/"
     - echo ">>> Pushing packages into '$rsync_dest'"
     - rsync -rv rpmbuild/DEBS/x86_64/*.deb $rsync_dest
-    - ssh $DEPLOY_SERVER "echo \">>>> Making repository make_repo deb $tmpdir $FREIGHT_PATH $RELEASE\"; make_repo deb $tmpdir $FREIGHT_PATH $RELEASE || exit 1; echo \">>>> Removing '$tmpdir'\"; rm -r $tmpdir"
+    - ssh $DEPLOY_SERVER "echo \">>>> Making repository with Freight\";  (freight add --conf=$FREIGHT_PATH $tmpdir/*.deb apt/$RELEASE/$BRANCH && freight cache --conf=$FREIGHT_PATH apt/$RELEASE) || exit 1; echo \">>>> Removing '$tmpdir'\"; rm -r $tmpdir"
+
+  after_script:
+    - echo $LC_CTYPE
+    - echo $TMP_LOCALE
+    - export LC_CTYPE=$TMP_LOCALE
 
 debian10-deb-deploy:
   extends: .debian-deb-upload
 
   variables:
     RELEASE: buster
+    BRANCH: stable
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
 
   dependencies:
@@ -99,6 +110,7 @@ debian11-deb-deploy:
 
   variables:
     RELEASE: bullseye
+    BRANCH: stable
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
 
   dependencies:

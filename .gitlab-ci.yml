@@ -62,7 +62,7 @@ debian11-deb:
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11:20211108_init
 
 .debian-deb-upload:
-  tags: [ "deploy" ]
+  tags: [ "macmini-deploy" ]
   stage: deploy
 
   only:
@@ -102,11 +102,6 @@ debian10-deb-deploy:
 
 debian11-deb-deploy:
   extends: .debian-deb-upload
-
-  only:
-    - branches
-    - merge_requests
-    - schedules
 
   variables:
     RELEASE: bullseye

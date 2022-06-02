@@ -21,7 +21,7 @@ URL:            http://www.linphone.org
 Source0:	flexisip-http-file-transfer-server.tar.gz
 
 # dependencies
-# this server need php to run there is no generic name and we do not need to enforce the use of apache, so no dependencies
+Requires:       php php-mysqlnd
 
 %description
 A PHP script managing file transfer according to Rich Communications Service recommendation : RCC.07 v6.0 section 3.5.4.8 File Transfer via HTTP.
@@ -79,6 +79,9 @@ fi
 rm -rf $RPM_BUILD_ROOT
 
 %changelog
+* Tue Jan 17 2023 Timothée Jaussoin <timothee.jaussoin@belledonne-communications.com>
+- Rewrite the XML generation using DOMDocument
+- Cleanup the PHP code and dependencies
 * Mon Apr 19 2021 Johan Pascal <johan.pascal@belledonne-communications.com>
 - 1.0-8 Debian/Ubuntu packaging
 * Mon Mar 22 2021 Johan Pascal <johan.pascal@belledonne-communications.com>

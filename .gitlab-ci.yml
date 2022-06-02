@@ -55,7 +55,7 @@ centos7-rpm-deploy:
 
 debian10-deb:
   extends: .debian-deb
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian10:2022_10_13_update_docker_image
 
 debian11-deb:
   extends: .debian-deb
@@ -113,7 +113,7 @@ debian11-deb-deploy:
 
 ubuntu-18.04-deb:
   extends: .debian-deb
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-18-04-lts:20210421_python3_fix_pip
 
 ubuntu-18.04-deb-deploy:
   extends: .debian-deb-upload

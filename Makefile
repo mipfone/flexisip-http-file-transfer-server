@@ -24,8 +24,17 @@ prepare:
 	mv flexisip-http-file-transfer-server.tar.gz $(OUTPUT_DIR)/rpmbuild/SOURCES/flexisip-http-file-transfer-server.tar.gz
 
 deb: prepare
-	rpmbuild -v -bb  --define "dist .deb" --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmdir $(OUTPUT_DIR)/rpmbuild/DEBS" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
-	rm -rf $(OUTPUT_DIR)/flexisip-http-file-transfer-server
-	cd $(OUTPUT_DIR)/rpmbuild/DEBS/x86_64/; fakeroot alien -d -k -c *.rpm;
+	rpmbuild -v -bb  --define "dist .deb" --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmfilename tmp.rpm" --define "_rpmdir $(OUTPUT_DIR)/rpmbuild/DEBS" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
+	fakeroot alien -g --scripts $(OUTPUT_DIR)/rpmbuild/DEBS/tmp.rpm
+	rm -r $(OUTPUT_DIR)/rpmbuild
+	rm -rf $(OUTPUT_DIR)/*.orig
+	sed -i 's/Depends:.*/Depends: $${shlibs:Depends}, php, php-xml, php-mysql/g' $(OUTPUT_DIR)/bc-flexisip-http-file-transfer-server*/debian/control
+	cd `ls -rt $(OUTPUT_DIR) | tail -1` && dpkg-buildpackage --no-sign
+	@echo "== DEB Package Created =="
+
+	# Cleanup
+	ls -d */ | cut -f1 -d'/' | grep bc-flexisip-http-file-transfer-server | xargs rm -rf
+	rm -rf flexisip-http-file-transfer-server
+	ls bc-flexisip-http-file-transfer-server* | grep -v deb | xargs rm
 
 .PHONY: all

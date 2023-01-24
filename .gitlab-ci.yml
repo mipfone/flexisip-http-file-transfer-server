@@ -55,7 +55,7 @@ centos7-rpm-deploy:
 
 debian10-deb:
   extends: .debian-deb
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian:10
+  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian10:20220913_mariadb_as_service
 
 debian11-deb:
   extends: .debian-deb
@@ -113,7 +113,7 @@ debian11-deb-deploy:
 
 ubuntu-18.04-deb:
   extends: .debian-deb
-  image: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu:18.04
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-ubuntu-18-04-lts-php:2023_01_24_rebuild_image
 
 ubuntu-18.04-deb-deploy:
   extends: .debian-deb-upload

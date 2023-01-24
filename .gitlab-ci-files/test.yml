@@ -1,0 +1,29 @@
+centos7-test:
+  extends: .test
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-centos7-php:$CENTOS_7_IMAGE_VERSION
+  needs:
+    - centos7-package
+  script:
+    - yum -y localinstall build/*.rpm
+
+rocky8-test:
+  extends: .test
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-rocky8-php:$ROCKY_8_IMAGE_VERSION
+  needs:
+    - rocky8-package
+  script:
+    - yum -y localinstall build/*.rpm
+
+debian11-test:
+  extends: .test
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11-php:$DEBIAN_11_IMAGE_VERSION
+  needs:
+    - debian11-package
+  script:
+    - pwd
+    - apt update
+    - apt install -y ./build/*.deb
+
+.test:
+  tags: ["docker"]
+  stage: test

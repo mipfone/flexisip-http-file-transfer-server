@@ -7,7 +7,11 @@
     %define apache_conf_path /etc/apache2/conf-available
 %else
     %define web_user apache
-    %define apache_conf_path /etc/httpd/conf.d
+    %if "%{?dist}" == ".el7"
+        %define apache_conf_path /opt/rh/httpd24/root/etc/httpd/conf.d
+    %else
+        %define apache_conf_path /etc/httpd/conf.d
+    %endif
 %endif
 
 Name:           bc-flexisip-http-file-transfer-server

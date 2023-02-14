@@ -78,7 +78,7 @@ function process_request()
 			$fileName = $dom->createElement('file-name', $_FILES['File']['name']);
 			$fileInfo->appendChild($fileName);
 
-			$contentType = $dom->createElement('file-size', $_FILES['File']['type']);
+			$contentType = $dom->createElement('content-type', $_FILES['File']['type']);
 			$fileInfo->appendChild($contentType);
 
 			$data = $dom->createElement('data');

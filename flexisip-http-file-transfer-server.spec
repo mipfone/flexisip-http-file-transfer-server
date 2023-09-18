@@ -2,7 +2,9 @@
 %define var_dir /var/opt/belledonne-communications
 %define opt_dir /opt/belledonne-communications/share/flexisip-http-file-transfer-server
 
-%if "%{?dist}" == ".deb"
+%bcond_with deb
+
+%if %{with deb}
     %define web_user www-data
     %define apache_conf_path /etc/apache2/conf-available
 %else

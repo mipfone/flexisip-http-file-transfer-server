@@ -14,15 +14,24 @@ rocky8-test:
   script:
     - yum -y localinstall build/*.rpm
 
-debian11-test:
+.debian-test:
   extends: .test
-  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11-php:$DEBIAN_11_IMAGE_VERSION
-  needs:
-    - debian11-package
   script:
     - pwd
     - apt update
     - apt install -y ./build/*.deb
+
+debian11-test:
+  extends: .debian-test
+  image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11-php:$DEBIAN_11_IMAGE_VERSION
+  needs:
+    - debian11-package
+
+debian12-test:
+  extends: .debian-test
+  image: gitlab.linphone.org:4567/bc/public/docker/debian12-php:$DEBIAN_12_IMAGE_VERSION
+  needs:
+    - debian12-package
 
 .test:
   tags: ["docker"]

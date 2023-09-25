@@ -2,6 +2,7 @@ variables:
   CENTOS_7_IMAGE_VERSION: 20221212_php803
   ROCKY_8_IMAGE_VERSION: 20221212_php80
   DEBIAN_11_IMAGE_VERSION: 20221212_php82
+  DEBIAN_12_IMAGE_VERSION: 20230925_143235_enable_debian12_packaging
 
 include:
   - '.gitlab-ci-files/package.yml'

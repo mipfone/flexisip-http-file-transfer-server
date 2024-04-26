@@ -6,13 +6,22 @@ centos7-deploy:
     - centos7-package
     - centos7-test
 
-rocky8-deploy:
+.deploy-rockylinux:
   extends: .deploy
   script:
     - ./deploy_packages.sh rockylinux
+
+rocky8-deploy:
+  extends: .deploy-rockylinux
   needs:
     - rocky8-package
     - rocky8-test
+
+rocky9-deploy:
+  extends: .deploy-rockylinux
+  needs:
+    - rocky9-package
+    - rocky9-test
 
 debian11-deploy:
   extends: .deploy
@@ -37,6 +46,7 @@ debian12-deploy:
     refs:
       - master
       - release/*
+      - feature/rocky9_support
 
   before_script:
     - eval $(ssh-agent -s)

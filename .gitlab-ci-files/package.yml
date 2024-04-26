@@ -10,6 +10,12 @@ rocky8-package:
   script:
     - make rpm
 
+rocky9-package:
+  extends: .package
+  image: gitlab.linphone.org:4567/bc/public/docker/rocky9-php:$ROCKY_9_IMAGE_VERSION
+  script:
+    - make rpm-el9
+
 debian11-package:
   extends: .debian-package
   image: gitlab.linphone.org:4567/bc/public/linphone-sdk/bc-dev-debian11-php:$DEBIAN_11_IMAGE_VERSION

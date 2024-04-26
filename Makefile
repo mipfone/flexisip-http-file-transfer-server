@@ -68,6 +68,15 @@ rpm-el7-only:
 	mv rpmbuild/*/*.rpm build/.
 	rm -r rpmbuild
 
+rpm-el9-only:
+	rpmbuild -v -bb --define 'dist .el9' --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmdir $(OUTPUT_DIR)/rpmbuild" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
+
+	@echo "📦✅ RPM Package Created"
+
+	@echo "🧹 Cleanup"
+	mv rpmbuild/*/*.rpm build/.
+	rm -r rpmbuild
+
 deb-only:
 	rpmbuild -v -bb --with deb --define '_topdir $(OUTPUT_DIR)/rpmbuild' --define "_rpmfilename tmp.rpm" --define "_rpmdir $(OUTPUT_DIR)/rpmbuild" $(OUTPUT_DIR)/rpmbuild/SPECS/flexisip-http-file-transfer-server.spec
 	fakeroot alien -g -k --scripts $(OUTPUT_DIR)/rpmbuild/tmp.rpm
@@ -85,7 +94,8 @@ deb-only:
 
 	mv *.deb build/.
 
-rpm-el7: package-semvers package-common rpm-only cleanup-package-semvers package-end-common
+rpm-el7: package-semvers package-common rpm-el7-only cleanup-package-semvers package-end-common
+rpm-el9: package-semvers package-common rpm-el9-only cleanup-package-semvers package-end-common
 rpm: package-semvers package-common rpm-only cleanup-package-semvers package-end-common
 deb: package-semvers package-common deb-only cleanup-package-semvers package-end-common
 

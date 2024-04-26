@@ -57,12 +57,12 @@ cp cron.d/flexisip-http-file-transfer-server "$RPM_BUILD_ROOT/etc/cron.d"
 sed -i 's/apache/%{web_user}/' "$RPM_BUILD_ROOT/etc/cron.d/flexisip-http-file-transfer-server"
 
 #log files, must be declared as ghost in the file section so they are removed when the package is uninstalled
-mkdir -p $RPM_BUILD_ROOT%{var_dir}/log
-touch $RPM_BUILD_ROOT%{var_dir}/log/flexisip-http-file-transfer-server.log
+mkdir -p $RPM_BUILD_ROOT%{var_dir}/log/flexisip-http-file-transfer-server
+touch $RPM_BUILD_ROOT%{var_dir}/log/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.log
 
 %post
-touch %{var_dir}/log/flexisip-http-file-transfer-server.log
-chown %{web_user}:%{web_user} %{var_dir}/log/flexisip-http-file-transfer-server.log
+touch %{var_dir}/log/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.log
+chown -R %{web_user}:%{web_user} %{var_dir}/log/flexisip-http-file-transfer-server
 
 # it seems crontab daemon parses only fresh files, to be sure, touch this one when the install is done
 touch /etc/cron.d/flexisip-http-file-transfer-server
@@ -71,8 +71,21 @@ touch /etc/cron.d/flexisip-http-file-transfer-server
 which setsebool
 if [ $? -eq 0 ] ; then
 setsebool -P httpd_can_network_connect_db on
-chcon -t httpd_sys_rw_content_t %{var_dir}/log/flexisip-http-file-transfer-server.log
+
+semanage fcontext -a -t var_log_t %{var_dir}/log/
+semanage fcontext -a -t httpd_log_t "%{var_dir}/log/flexisip-http-file-transfer-server(/.*)?"
+restorecon %{var_dir}/log
+restorecon -R %{var_dir}/log/flexisip-http-file-transfer-server
+
 fi
+
+%postun
+which setsebool
+if [ $? -eq 0 ] ; then
+  # Final removal.
+  semanage fcontext -d -t httpd_log_t "%{var_dir}/log/flexisip-http-file-transfer-server(./*)?" 2>/dev/null || :
+fi
+
 
 %files
 %{opt_dir}/*.php
@@ -80,7 +93,7 @@ fi
 %{opt_dir}/LICENSE.txt
 %dir %attr(744,%{web_user},%{web_user}) %{var_dir}/flexisip-http-file-transfer-tmp
 %dir %{var_dir}/log
-%ghost %attr(644, %{web_user}, %{web_user}) %{var_dir}/log/flexisip-http-file-transfer-server.log
+%ghost %attr(644, %{web_user}, %{web_user}) %{var_dir}/log/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.log
 
 %config(noreplace) /etc/flexisip-http-file-transfer-server/flexisip-http-file-transfer-server.conf
 %config(noreplace) %{apache_conf_path}/flexisip-http-file-transfer-server.conf
